@@ -1,0 +1,3 @@
+newsapi_python==0.2.7
+pyTelegramBotAPI==4.11.0
+SQLAlchemy==2.0.4
