@@ -3,13 +3,13 @@ from data.configuration import API_NEWS_TOKEN
 from random import choice as rand
 import datetime as dt
 
-today = dt.date.today()
-week_ago = today - dt.timedelta(days=7)
-
 api = NewsApiClient(api_key=API_NEWS_TOKEN)
 
 
 def get_news(request, lang):
+    today = dt.date.today()
+    week_ago = today - dt.timedelta(days=7)
+
     news_list = api.get_everything(q=request, language=lang, from_param=week_ago)
 
     if news_list['totalResults'] == 0:

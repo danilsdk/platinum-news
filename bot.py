@@ -153,6 +153,9 @@ def user_interface(message):
             if permission == 'user':
                 bot.register_next_step_handler(insert, news_sent)
 
+    elif message.text == '/change_perm':
+        get_perm(message)
+
     elif permission in ['user', 'banned']:
         markup_user.add('Предложить новость 🗞', 'Профиль 👤')
         msg = bot.send_message(chat_id, "Воспользуйся кнопками ниже 👇",
@@ -281,6 +284,9 @@ def admin_interface(message):
         msg = bot.send_message(chat_id, "Отправьте текстовый запрос для поиска новостей", reply_markup=keyboard)
 
         bot.register_next_step_handler(msg, find_news, delete=msg)
+
+    elif message.text == '/change_perm':
+        get_perm(message)
 
     elif permission == 'admin':
         markup_admin = ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True, row_width=2)
@@ -604,6 +610,26 @@ def callback_handler(call):
         except telebot.apihelper.ApiTelegramException:
             pass
 
+    elif call.data == 'find':
+        bot.delete_message(chat_id=chat_id, message_id=call.message.message_id)
+
+        session = Session()
+        temp = session.query(Template).first()
+        session.close()
+
+        keyboard = InlineKeyboardMarkup(row_width=4)
+
+        ru = InlineKeyboardButton('🇷🇺✔️' if temp.lang == 'ru' else '🇷🇺', callback_data='ru')
+        en = InlineKeyboardButton('🇬🇧✔️' if temp.lang == 'en' else '🇬🇧', callback_data='en')
+        back_button = InlineKeyboardButton('↩️Вернуться назад', callback_data='back3')
+
+        keyboard.add(ru, en)
+        keyboard.add(back_button)
+
+        msg = bot.send_message(chat_id, "Отправьте текстовый запрос для поиска новостей", reply_markup=keyboard)
+
+        bot.register_next_step_handler(msg, find_news, delete=msg)
+
     session.close()
 
     if call.data in ['next', 'prev', 'delete', 'post', 'edit', 'del_all']:
@@ -751,27 +777,22 @@ def find_news(message, delete):
         if e.result.status_code != 400 or 'message to delete not found' not in e.result.json()['description']:
             raise e
 
+    keyboard = InlineKeyboardMarkup(row_width=4)
+
+    find = InlineKeyboardButton('🔄 Искать еще', callback_data='find')
+    back_button = InlineKeyboardButton('↩️Вернуться назад', callback_data='back3')
+
+    keyboard.add(find)
+    keyboard.add(back_button)
+
     if data == '404':
-        bot.send_message(chat_id, "Новость не найдена")
+        bot.send_message(chat_id, "Новость не найдена", reply_markup=keyboard)
     else:
         text = f"{data['title']}\n\nИсточник: {data['source']}\n Дата публикации: {data['date']}\n\nСсылка: {data['url']}"
         if data['image'] is not None:
-            bot.send_photo(chat_id, data['image'], caption=text)
+            bot.send_photo(chat_id, data['image'], caption=text, reply_markup=keyboard)
         else:
-            bot.send_message(chat_id, text)
-
-    keyboard = InlineKeyboardMarkup(row_width=4)
-
-    ru = InlineKeyboardButton('🇷🇺✔️' if temp.lang == 'ru' else '🇷🇺', callback_data='ru')
-    en = InlineKeyboardButton('🇬🇧✔️' if temp.lang == 'en' else '🇬🇧', callback_data='en')
-    back_button = InlineKeyboardButton('↩️Вернуться назад', callback_data='back3')
-
-    keyboard.add(ru, en)
-    keyboard.add(back_button)
-
-    msg = bot.send_message(chat_id, "Отправьте текстовый запрос для поиска новостей", reply_markup=keyboard)
-
-    bot.register_next_step_handler(msg, find_news, delete=msg)
+            bot.send_message(chat_id, text, reply_markup=keyboard)
 
 
 @bot.message_handler(commands=['ban'])
@@ -812,6 +833,29 @@ def unban(username):
     bot.register_next_step_handler(username, admin_interface)
     try:
         bot.delete_message(username.chat.id, username.message_id)
+    except telebot.apihelper.ApiTelegramException as e:
+        # если сообщение уже было удалено, то игнорируем ошибку
+        if e.result.status_code != 400 or 'message to delete not found' not in e.result.json()['description']:
+            raise e
+
+
+@bot.message_handler(commands=['change_perm'])  # смена прав пользователя - функция для тестирования
+def get_perm(message):
+    session = Session()
+    user = session.query(User).filter_by(user_id=message.from_user.id).first()
+
+    if user is not None and user.is_admin:
+        user.is_admin = False
+    elif user is not None and not user.is_admin:
+        user.is_admin = True
+
+    session.commit()
+    session.close()
+
+    bot.register_next_step_handler(message, send_welcome)
+    bot.send_message(message.chat.id, "Смена прав")
+    try:
+        bot.delete_message(message.chat.id, message.message_id)
     except telebot.apihelper.ApiTelegramException as e:
         # если сообщение уже было удалено, то игнорируем ошибку
         if e.result.status_code != 400 or 'message to delete not found' not in e.result.json()['description']:
