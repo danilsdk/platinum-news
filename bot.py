@@ -632,7 +632,7 @@ def callback_handler(call):
 
     session.close()
 
-    if call.data in ['next', 'prev', 'delete', 'post', 'edit', 'del_all']:
+    if call.data in ['next', 'prev', 'delete', 'post', 'del_all']:
         # отправляем новость
         send_news(call.message)
 
