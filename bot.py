@@ -789,7 +789,7 @@ def find_news(message, delete):
         bot.send_message(chat_id, "Новость не найдена", reply_markup=keyboard)
     else:
         text = f"{data['title']}\n\nИсточник: {data['source']}\n Дата публикации: {data['date']}\n\nСсылка: {data['url']}"
-        if data['image'] is not None:
+        if data['image']:
             bot.send_photo(chat_id, data['image'], caption=text, reply_markup=keyboard)
         else:
             bot.send_message(chat_id, text, reply_markup=keyboard)
